@@ -1,44 +1,49 @@
-#ifndef SRC_OS_ENGINE_PCB_H
-#define SRC_OS_ENGINE_PCB_H
+// src/os_engine/PCB.h
+#ifndef PCB_H
+#define PCB_H
 
-#include <string>
-using namespace std;
+// 1. 7-State Model
+typedef enum {
+    STATE_NEW,
+    STATE_READY,
+    STATE_RUNNING,
+    STATE_BLOCKED,
+    STATE_TERMINATED,
+    STATE_READY_SUSPEND,
+    STATE_BLOCKED_SUSPEND
+} ProcessState;
 
-class PCB {
-public:
-    // Process state
-    enum class State { NEW, READY, RUNNING, WAITING, TERMINATED };
+// 2. Kernel Mode vs User Mode
+typedef enum {
+    USER_MODE,
+    KERNEL_MODE
+} PrivilegeMode;
 
-    // Constructors
-    PCB();
-    PCB(const string& pid, int arrival, int burst, int priority, State state, double carbon = 0.0);
+// 3. Process Control Block (PCB)
+typedef struct {
+    char job_id[16];
+    int burst_time;
+    int memory_req;
+    
+    ProcessState state;
+    PrivilegeMode mode;
+    
+    // Eco-Profile
+    double carbon_footprint;
+} PCB;
 
-    // Getters
-    string getPID() const;
-    int getArrivalTime() const;
-    int getBurstTime() const;
-    int getPriority() const;
-    State getState() const;
-    double getCarbonFootprint() const;
+// Helper to convert state enum to string for printing
+const char* getStateName(ProcessState state) {
+    switch(state) {
+        case STATE_NEW: return "NEW";
+        case STATE_READY: return "READY";
+        case STATE_RUNNING: return "RUNNING";
+        case STATE_BLOCKED: return "BLOCKED";
+        case STATE_TERMINATED: return "TERMINATED";
+        case STATE_READY_SUSPEND: return "READY_SUSPEND";
+        case STATE_BLOCKED_SUSPEND: return "BLOCKED_SUSPEND";
+        default: return "UNKNOWN";
+    }
+}
 
-    // Setters
-    void setPID(const string& pid);
-    void setArrivalTime(int t);
-    void setBurstTime(int t);
-    void setPriority(int p);
-    void setState(State s);
-    void setCarbonFootprint(double c);
-
-    // Display
-    void display() const;
-
-private:
-    string PID_;
-    int Arrival_Time_;
-    int Burst_Time_;
-    int Priority_;
-    State State_;
-    double Carbon_Footprint_ = 0.0;
-};
-
-#endif // SRC_OS_ENGINE_PCB_H
+#endif
