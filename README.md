@@ -259,6 +259,99 @@ git checkout -b feature/your-task-name
 
 ---
 
+```mermaid
+    sequenceDiagram
+    participant Main as Main Thread (OS Boot)
+    participant Prod as Producer (Job Generator)
+    participant Q as Ready Queue (Shared Memory)
+    participant Core1 as CPU Core 1 (Consumer)
+    participant Core2 as CPU Core 2 (Consumer)
+    participant Grid as Global Energy Grid
+
+    Main->>Prod: pthread_create()
+    Main->>Core1: pthread_create()
+    Main->>Core2: pthread_create()
+    
+    rect rgb(230, 245, 255)
+        Note over Prod: Concept: Process Creation
+        Prod->>Prod: Create PCB (PID, Burst, Mode: USER)
+        Note over Prod: [STATE: NEW]
+    end
+
+    %% PRODUCER LOGIC 
+    Note over Prod, Q: Concept: Semaphores & Mutex (Bounded Buffer)
+    alt Queue Capacity is Full (empty_slots == 0)
+        Prod-->>Prod: sem_wait(&empty_slots) -> THREAD BLOCKED
+    else Queue has Space
+        Prod->>Q: sem_wait(&empty_slots) -> PROCEED
+        Prod->>Q: pthread_mutex_lock(&queue_mutex)
+        
+        Q-->>Q: Insert PCB into Array
+        Note over Q: [STATE: NEW] ➔ [STATE: READY]
+        
+        Q->>Prod: pthread_mutex_unlock(&queue_mutex)
+        Prod->>Core1: sem_post(&full_slots) -> WAKES IDLE CPU
+    end
+
+    %% CONSUMER LOGIC (SHOWING BOTH CORES)
+    Note over Core1, Core2: Concept: Multi-Core Synchronization
+    
+    %% CORE 2 SCENARIO (EMPTY QUEUE)
+    alt Queue is Empty (full_slots == 0)
+        Core2-->>Core2: sem_wait(&full_slots) -> CORE 2 GOES TO SLEEP
+    end
+
+    %% CORE 1 SCENARIO (HAS JOB)
+    alt Queue has Jobs (full_slots > 0)
+        Core1->>Q: sem_wait(&full_slots) -> PROCEED
+        Core1->>Q: pthread_mutex_lock(&queue_mutex)
+        
+        Q-->>Core1: Extract PCB from Array
+        Core1->>Q: pthread_mutex_unlock(&queue_mutex)
+        Core1->>Prod: sem_post(&empty_slots) -> WAKES PRODUCER
+    end
+
+    %% EXECUTION & CONTEXT SWITCHING
+    rect rgb(245, 255, 245)
+        Note over Core1: Concept: Context Switching
+        Core1->>Core1: usleep(500000) - Load Hardware Registers
+        Note over Core1: [STATE: READY] ➔ [STATE: RUNNING]
+    end
+
+    %% SYSTEM CALLS & HARDWARE ACCESS
+    rect rgb(255, 245, 245)
+        Note over Core1, Grid: Concept: Privilege Escalation & System Calls
+        Core1->>Core1: trigger sim_request_resource()
+        Core1->>Core1: Mode = KERNEL_MODE
+        
+        Core1->>Grid: pthread_mutex_lock(&energy_mutex)
+        
+        alt Requested Watts <= Global Budget
+            Grid-->>Grid: Deduct Watts (Resource Allocated)
+        else Requested Watts > Global Budget
+            Note over Grid: Concept: Deadlock & Overload Avoidance
+            Grid-->>Grid: Deny Request (Prevent Grid Failure)
+            Note over Grid: [STATE: BLOCKED] (If waiting for power)
+        end
+        
+        Grid->>Core1: pthread_mutex_unlock(&energy_mutex)
+        Core1->>Core1: Mode = USER_MODE
+    end
+
+    %% TERMINATION
+    rect rgb(240, 240, 240)
+        Note over Core1: Concept: CPU Execution & Termination
+        Core1->>Core1: sleep(burst_time) - Execute User Code
+        Note over Core1: [STATE: RUNNING] ➔ [STATE: TERMINATED]
+    end
+    
+    %% ECO-CLOUD EXTENSION CALLOUT
+    Note over Prod, Grid: ECO-CLOUD RESEARCH EXTENSION:<br/>Jobs delayed due to high Grid Carbon Intensity will be moved to<br/>[STATE: READY_SUSPEND] or [STATE: BLOCKED_SUSPEND]
+
+
+```
+
+
 
 Built for Academic Year 2025–2026  
 Department of CSE (AIML)
